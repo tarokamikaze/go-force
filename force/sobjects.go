@@ -2,22 +2,80 @@ package force
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"strings"
 	"net/url"
+	"strings"
+	"time"
 )
 
 // Interface all standard and custom objects must implement. Needed for uri generation.
 type SObject interface {
+	SetID(string)
 	ApiName() string
 	ExternalIdApiName() string
 }
 
 // Response recieved from force.com API after insert of an sobject.
 type SObjectResponse struct {
-	Id      string    `force:"id,omitempty"`
-	Errors  ApiErrors `force:"error,omitempty"` //TODO: Not sure if ApiErrors is the right object
-	Success bool      `force:"success,omitempty"`
+	Id      string         `json:"id,omitempty"`
+	Errors  []SObjectError `json:"errors,omitempty"` //TODO: Not sure if ApiErrors is the right object
+	Success bool           `json:"success,omitempty"`
+}
+type SObjectError struct {
+	Message              string      `json:"message"`
+	Fields               []string    `json:"fields"`
+	StatusCode           string      `json:"statusCode"`
+	ExtendedErrorDetails interface{} `json:"extendedErrorDetails"`
+}
+
+// Response recieved from force.com API after insert of an sobject.
+type CreateJobRequest struct {
+	Operation   string `json:"operation,omitempty"`
+	Object      string `json:"object,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+}
+
+// Response recieved from force.com API after insert of an sobject.
+type CloseJobRequest struct {
+	State string `json:"state,omitempty"`
+}
+
+type CreateJobResponse struct {
+	ApexProcessingTime      int     `json:"apexProcessingTime"`
+	APIActiveProcessingTime int     `json:"apiActiveProcessingTime"`
+	APIVersion              float64 `json:"apiVersion"`
+	ConcurrencyMode         string  `json:"concurrencyMode"`
+	ContentType             string  `json:"contentType"`
+	CreatedByID             string  `json:"createdById"`
+	CreatedDate             string  `json:"createdDate"`
+	ID                      string  `json:"id"`
+	NumberBatchesCompleted  int     `json:"numberBatchesCompleted"`
+	NumberBatchesFailed     int     `json:"numberBatchesFailed"`
+	NumberBatchesInProgress int     `json:"numberBatchesInProgress"`
+	NumberBatchesQueued     int     `json:"numberBatchesQueued"`
+	NumberBatchesTotal      int     `json:"numberBatchesTotal"`
+	NumberRecordsFailed     int     `json:"numberRecordsFailed"`
+	NumberRecordsProcessed  int     `json:"numberRecordsProcessed"`
+	NumberRetries           int     `json:"numberRetries"`
+	Object                  string  `json:"object"`
+	Operation               string  `json:"operation"`
+	State                   string  `json:"state"`
+	SystemModstamp          string  `json:"systemModstamp"`
+	TotalProcessingTime     int     `json:"totalProcessingTime"`
+}
+
+type CreateBatchResponse struct {
+	ApexProcessingTime      int    `json:"apexProcessingTime"`
+	APIActiveProcessingTime int    `json:"apiActiveProcessingTime"`
+	CreatedDate             string `json:"createdDate"`
+	ID                      string `json:"id"`
+	JobID                   string `json:"jobId"`
+	NumberRecordsFailed     int    `json:"numberRecordsFailed"`
+	NumberRecordsProcessed  int    `json:"numberRecordsProcessed"`
+	State                   string `json:"state"`
+	SystemModstamp          string `json:"systemModstamp"`
+	TotalProcessingTime     int    `json:"totalProcessingTime"`
 }
 
 func (forceApi *ForceApi) DescribeSObject(in SObject) (resp *SObjectDescription, err error) {
@@ -76,11 +134,144 @@ func (forceApi *ForceApi) GetSObject(id string, fields []string, out SObject) (e
 	return
 }
 
-func (forceApi *ForceApi) InsertSObject(in SObject) (resp *SObjectResponse, err error) {
-	uri := forceApi.apiSObjects[in.ApiName()].URLs[sObjectKey]
+func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+	if _, ok := forceApi.apiSObjects[table]; ok {
 
-	resp = &SObjectResponse{}
-	err = forceApi.Post(uri, nil, in.(interface{}), resp)
+		job, err := forceApi.createJob(table, "insert")
+
+		if nil != err {
+			return nil, err
+		}
+
+		defer forceApi.closeJob(job.ID)
+
+		res, err := forceApi.createBatch(job.ID, in)
+
+		if nil != err {
+			return nil, err
+		}
+
+		batchID := res.ID
+
+		for res.State != "Completed" {
+			time.Sleep(time.Second * time.Duration(2))
+			res, err = forceApi.getBatchStatus(job.ID, batchID)
+
+			if nil != err {
+				return nil, err
+			}
+
+			if res.State == "Failed" {
+				return nil, errors.New("Failed import")
+			}
+		}
+
+		if res.State == "Completed" {
+			results, err := forceApi.getBatchResults(job.ID, batchID)
+			if nil != err {
+				return nil, err
+			}
+
+			return results, nil
+		}
+
+		return nil, errors.New("Unknown error")
+
+	} else {
+		err := errors.New("Not found")
+
+		return nil, err
+	}
+}
+
+func (forceApi *ForceApi) createBatch(jobID string, in []SObject) (*CreateBatchResponse, error) {
+
+	jobResp := &CreateBatchResponse{}
+	err := forceApi.Post("/services/async/37.0/job/"+jobID+"/batch", nil, in, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) getBatchStatus(jobID string, batchID string) (*CreateBatchResponse, error) {
+
+	jobResp := &CreateBatchResponse{}
+	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID, nil, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) getBatchResults(jobID string, batchID string) ([]*SObjectResponse, error) {
+
+	jobResp := []*SObjectResponse{}
+	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID+"/result", nil, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) createJob(table string, operation string) (*CreateJobResponse, error) {
+	req := &CreateJobRequest{
+		Operation:   operation,
+		Object:      table,
+		ContentType: "JSON",
+	}
+	jobResp := &CreateJobResponse{}
+	err := forceApi.Post("/services/async/37.0/job", nil, req, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) closeJob(jobID string) (*CreateJobResponse, error) {
+	req := &CloseJobRequest{
+		State: "Closed",
+	}
+
+	jobResp := &CreateJobResponse{}
+	err := forceApi.Post("/services/async/37.0/job/"+jobID, nil, req, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) getJobStatus(jobID string) (*CreateJobResponse, error) {
+
+	jobResp := &CreateJobResponse{}
+	err := forceApi.Get("/services/async/37.0/job/"+jobID, nil, jobResp)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) InsertSObject(in SObject) (resp *SObjectResponse, err error) {
+	if sObject, ok := forceApi.apiSObjects[in.ApiName()]; ok {
+		uri := sObject.URLs[sObjectKey]
+
+		resp = &SObjectResponse{}
+		err = forceApi.Post(uri, nil, in.(interface{}), resp)
+	} else {
+		err = errors.New("Not found")
+	}
 
 	return
 }

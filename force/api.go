@@ -1,6 +1,7 @@
 package force
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -15,18 +16,26 @@ const (
 	rowTemplateKey = "rowTemplate"
 	idKey          = "{ID}"
 
-	resourcesUri = "/services/data/%v"
+	resourcesUri = "/services/data/%v/"
+	versionsUri  = "/services/data"
 )
 
 type ForceApi struct {
 	apiVersion             string
 	oauth                  *forceOauth
+	apiVersions            []*Version
 	apiResources           map[string]string
 	apiSObjects            map[string]*SObjectMetaData
 	apiSObjectDescriptions map[string]*SObjectDescription
 	apiMaxBatchSize        int64
 	logger                 ForceApiLogger
 	logPrefix              string
+}
+
+type Version struct {
+	Label   string `json:"label"`
+	URL     string `json:"url"`
+	Version string `json:"version"`
 }
 
 type SObjectApiResponse struct {
@@ -163,9 +172,33 @@ type ChildRelationship struct {
 	RelationshipName    string `json:"relationshipName"`
 }
 
+func (forceApi *ForceApi) GetApiSObjectDescription(name string) (*SObjectDescription, error) {
+	if desc, ok := forceApi.apiSObjectDescriptions[name]; ok {
+		return desc, nil
+	} else {
+		if sObject, ok := forceApi.apiSObjects[name]; ok {
+			uri := sObject.URLs[sObjectDescribeKey]
+
+			desc := &SObjectDescription{}
+			err := forceApi.Get(uri, nil, desc)
+			if err != nil {
+				return nil, err
+			}
+
+			forceApi.apiSObjectDescriptions[name] = desc
+			return desc, nil
+		} else {
+			return nil, errors.New("Not found")
+		}
+	}
+}
+
+func (forceApi *ForceApi) getApiVersions() error {
+	return forceApi.Get(versionsUri, nil, &forceApi.apiVersions)
+}
+
 func (forceApi *ForceApi) getApiResources() error {
 	uri := fmt.Sprintf(resourcesUri, forceApi.apiVersion)
-
 	return forceApi.Get(uri, nil, &forceApi.apiResources)
 }
 

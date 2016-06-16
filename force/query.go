@@ -10,13 +10,33 @@ const (
 	BaseQueryString = "SELECT %v FROM %v"
 )
 
-func BuildQuery(fields, table string, constraints []string) string {
+func BuildQuery(fields, table string, constraints []string, constraintJoin string) string {
 	query := fmt.Sprintf(BaseQueryString, fields, table)
 	if len(constraints) > 0 {
-		query += fmt.Sprintf(" WHERE %v", strings.Join(constraints, " AND "))
+		query += fmt.Sprintf(" WHERE %v", strings.Join(constraints, " "+constraintJoin+" "))
 	}
 
 	return query
+}
+
+func (forceApi *ForceApi) GetFields(table string, allowCustomFields bool) (fieldList string, err error) {
+
+	desc, err := forceApi.GetApiSObjectDescription(table)
+	if err != nil {
+		return "", err
+	}
+
+	fields := ""
+	for _, field := range desc.Fields {
+		if allowCustomFields || !strings.HasSuffix(field.Name, "__c") {
+			if fields != "" {
+				fields = fields + ","
+			}
+			fields = fields + field.Name
+		}
+	}
+
+	return fields, nil
 }
 
 // Use the Query resource to execute a SOQL query that returns all the results in a single response,

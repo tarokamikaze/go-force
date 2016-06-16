@@ -2,13 +2,13 @@ package force
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/nimajalali/go-force/forcejson"
+	"strings"
 )
 
 const (
@@ -54,7 +54,10 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 
 	// Build Uri
 	var uri bytes.Buffer
-	uri.WriteString(forceApi.oauth.InstanceUrl)
+	if !strings.HasPrefix(path, "https://") && !strings.HasPrefix(path, "http://") {
+		uri.WriteString(forceApi.oauth.InstanceUrl)
+	}
+
 	uri.WriteString(path)
 	if params != nil && len(params) != 0 {
 		uri.WriteString("?")
@@ -65,7 +68,7 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 	var body io.Reader
 	if payload != nil {
 
-		jsonBytes, err := forcejson.Marshal(payload)
+		jsonBytes, err := json.Marshal(payload)
 		if err != nil {
 			return fmt.Errorf("Error marshaling encoded payload: %v", err)
 		}
@@ -84,7 +87,7 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", responseType)
 	req.Header.Set("Authorization", fmt.Sprintf("%v %v", "Bearer", forceApi.oauth.AccessToken))
-
+	req.Header.Set("X-SFDC-Session", forceApi.oauth.AccessToken)
 	// Send
 	forceApi.traceRequest(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -108,7 +111,7 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 	// Attempt to parse response into out
 	var objectUnmarshalErr error
 	if out != nil {
-		objectUnmarshalErr = forcejson.Unmarshal(respBytes, out)
+		objectUnmarshalErr = json.Unmarshal(respBytes, out)
 		if objectUnmarshalErr == nil {
 			return nil
 		}
@@ -116,7 +119,7 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 
 	// Attempt to parse response as a force.com api error before returning object unmarshal err
 	apiErrors := ApiErrors{}
-	if marshalErr := forcejson.Unmarshal(respBytes, &apiErrors); marshalErr == nil {
+	if marshalErr := json.Unmarshal(respBytes, &apiErrors); marshalErr == nil {
 		if apiErrors.Validate() {
 			// Check if error is oauth token expired
 			if forceApi.oauth.Expired(apiErrors) {

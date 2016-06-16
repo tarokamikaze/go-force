@@ -19,7 +19,7 @@ const (
 )
 
 func Create(version, clientId, clientSecret, userName, password, securityToken,
-	environment string) (*ForceApi, error) {
+	environment, prefix string, logger ForceApiLogger) (*ForceApi, error) {
 	oauth := &forceOauth{
 		clientId:      clientId,
 		clientSecret:  clientSecret,
@@ -37,11 +37,22 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 		oauth:                  oauth,
 	}
 
+	if nil != logger {
+		forceApi.TraceOn("prefix", logger)
+	}
+
 	// Init oauth
 	err := forceApi.oauth.Authenticate()
 	if err != nil {
 		return nil, err
 	}
+
+	err = forceApi.getApiVersions()
+	if err != nil {
+		return nil, err
+	}
+
+	forceApi.apiVersion = "v" + forceApi.apiVersions[len(forceApi.apiVersions)-1].Version
 
 	// Init Api Resources
 	err = forceApi.getApiResources()
@@ -89,9 +100,14 @@ func CreateWithAccessToken(version, clientId, accessToken, instanceUrl string) (
 	return forceApi, nil
 }
 
+func (forceApi *ForceApi) PopulateSessionToken() error {
+	var i interface{}
+	return forceApi.Get(forceApi.oauth.Id, nil, i)
+}
+
 // Used when running tests.
 func createTest() *ForceApi {
-	forceApi, err := Create(testVersion, testClientId, testClientSecret, testUserName, testPassword, testSecurityToken, testEnvironment)
+	forceApi, err := Create(testVersion, testClientId, testClientSecret, testUserName, testPassword, testSecurityToken, testEnvironment, "", nil)
 	if err != nil {
 		fmt.Printf("Unable to create ForceApi for test: %v", err)
 		os.Exit(1)
