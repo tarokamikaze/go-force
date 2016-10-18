@@ -22,7 +22,7 @@ const (
 
 type ForceApi struct {
 	apiVersion             string
-	oauth                  *forceOauth
+	oauth                  *ForceOauth
 	apiVersions            []*Version
 	apiResources           map[string]string
 	apiSObjects            map[string]*SObjectMetaData
@@ -105,7 +105,7 @@ type SObjectField struct {
 	Length                   float64          `json:"length"`
 	Name                     string           `json:"name"`
 	Type                     string           `json:"type"`
-	DefaultValue             string           `json:"defaultValue"`
+	DefaultValue             interface{}      `json:"defaultValue"`
 	RestrictedPicklist       bool             `json:"restrictedPicklist"`
 	NameField                bool             `json:"nameField"`
 	ByteLength               float64          `json:"byteLength"`

@@ -134,10 +134,10 @@ func (forceApi *ForceApi) GetSObject(id string, fields []string, out SObject) (e
 	return
 }
 
-func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+func (forceApi *ForceApi) BulkQuerySObjects(table string, query string) ([]*SObjectResponse, error) {
 	if _, ok := forceApi.apiSObjects[table]; ok {
 
-		job, err := forceApi.createJob(table, "insert")
+		job, err := forceApi.createJob(table, "query", "CSV")
 
 		if nil != err {
 			return nil, err
@@ -145,7 +145,7 @@ func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SOb
 
 		defer forceApi.closeJob(job.ID)
 
-		res, err := forceApi.createBatch(job.ID, in)
+		res, err := forceApi.createQueryBatch(job.ID, query)
 
 		if nil != err {
 			return nil, err
@@ -184,7 +184,69 @@ func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SOb
 	}
 }
 
-func (forceApi *ForceApi) createBatch(jobID string, in []SObject) (*CreateBatchResponse, error) {
+func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+	if _, ok := forceApi.apiSObjects[table]; ok {
+
+		job, err := forceApi.createJob(table, "insert", "JSON")
+
+		if nil != err {
+			return nil, err
+		}
+
+		defer forceApi.closeJob(job.ID)
+
+		res, err := forceApi.createInsertBatch(job.ID, in)
+
+		if nil != err {
+			return nil, err
+		}
+
+		batchID := res.ID
+
+		for res.State != "Completed" {
+			time.Sleep(time.Second * time.Duration(2))
+			res, err = forceApi.getBatchStatus(job.ID, batchID)
+
+			if nil != err {
+				return nil, err
+			}
+
+			if res.State == "Failed" {
+				return nil, errors.New("Failed import")
+			}
+		}
+
+		if res.State == "Completed" {
+			results, err := forceApi.getBatchResults(job.ID, batchID)
+			if nil != err {
+				return nil, err
+			}
+
+			return results, nil
+		}
+
+		return nil, errors.New("Unknown error")
+
+	} else {
+		err := errors.New("Not found")
+
+		return nil, err
+	}
+}
+
+func (forceApi *ForceApi) createQueryBatch(jobID string, query string) (*CreateBatchResponse, error) {
+
+	jobResp := &CreateBatchResponse{}
+	err := forceApi.requestWithContentType("POST", "/services/async/37.0/job/"+jobID+"/batch", nil, query, jobResp, "text/csv")
+
+	if nil != err {
+		return nil, err
+	}
+
+	return jobResp, nil
+}
+
+func (forceApi *ForceApi) createInsertBatch(jobID string, in []SObject) (*CreateBatchResponse, error) {
 
 	jobResp := &CreateBatchResponse{}
 	err := forceApi.Post("/services/async/37.0/job/"+jobID+"/batch", nil, in, jobResp)
@@ -220,11 +282,11 @@ func (forceApi *ForceApi) getBatchResults(jobID string, batchID string) ([]*SObj
 	return jobResp, nil
 }
 
-func (forceApi *ForceApi) createJob(table string, operation string) (*CreateJobResponse, error) {
+func (forceApi *ForceApi) createJob(table string, operation string, contentType string) (*CreateJobResponse, error) {
 	req := &CreateJobRequest{
 		Operation:   operation,
 		Object:      table,
-		ContentType: "JSON",
+		ContentType: contentType,
 	}
 	jobResp := &CreateJobResponse{}
 	err := forceApi.Post("/services/async/37.0/job", nil, req, jobResp)

@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	version      = "1.0.0"
-	userAgent    = "go-force/" + version
-	contentType  = "application/json"
-	responseType = "application/json"
+	version         = "1.0.0"
+	userAgent       = "go-force/" + version
+	jsonContentType = "application/json"
+	responseType    = "application/json"
 )
 
 // Get issues a GET to the specified path with the given params and put the
@@ -48,6 +48,10 @@ func (forceApi *ForceApi) Delete(path string, params url.Values) error {
 }
 
 func (forceApi *ForceApi) request(method, path string, params url.Values, payload, out interface{}) error {
+	return forceApi.requestWithContentType(method, path, params, payload, out, jsonContentType)
+}
+
+func (forceApi *ForceApi) requestWithContentType(method, path string, params url.Values, payload, out interface{}, contentType string) error {
 	if err := forceApi.oauth.Validate(); err != nil {
 		return fmt.Errorf("Error creating %v request: %v", method, err)
 	}
@@ -67,13 +71,16 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 	// Build body
 	var body io.Reader
 	if payload != nil {
+		if contentType == jsonContentType {
+			jsonBytes, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("Error marshaling encoded payload: %v", err)
+			}
 
-		jsonBytes, err := json.Marshal(payload)
-		if err != nil {
-			return fmt.Errorf("Error marshaling encoded payload: %v", err)
+			body = bytes.NewReader(jsonBytes)
+		} else {
+			body = bytes.NewReader([]byte(payload.(string)))
 		}
-
-		body = bytes.NewReader(jsonBytes)
 	}
 
 	// Build Request

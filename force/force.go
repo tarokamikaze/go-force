@@ -20,7 +20,7 @@ const (
 
 func Create(version, clientId, clientSecret, userName, password, securityToken,
 	environment, prefix string, logger ForceApiLogger) (*ForceApi, error) {
-	oauth := &forceOauth{
+	oauth := &ForceOauth{
 		clientId:      clientId,
 		clientSecret:  clientSecret,
 		userName:      userName,
@@ -67,8 +67,54 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 	return forceApi, nil
 }
 
+func CreateWithCode(version, clientId, clientSecret, redirectURI, code,
+	environment, prefix string, logger ForceApiLogger) (*ForceApi, *ForceOauth, error) {
+	oauth := &ForceOauth{
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		environment:  environment,
+	}
+
+	forceApi := &ForceApi{
+		apiResources:           make(map[string]string),
+		apiSObjects:            make(map[string]*SObjectMetaData),
+		apiSObjectDescriptions: make(map[string]*SObjectDescription),
+		apiVersion:             version,
+		oauth:                  oauth,
+	}
+
+	if nil != logger {
+		forceApi.TraceOn("prefix", logger)
+	}
+
+	// Init oauth
+	err := forceApi.oauth.AuthenticateCode(code, redirectURI)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = forceApi.getApiVersions()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	forceApi.apiVersion = "v" + forceApi.apiVersions[len(forceApi.apiVersions)-1].Version
+
+	// Init Api Resources
+	err = forceApi.getApiResources()
+	if err != nil {
+		return nil, nil, err
+	}
+	err = forceApi.getApiSObjects()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return forceApi, oauth, nil
+}
+
 func CreateWithAccessToken(version, clientId, accessToken, instanceUrl string) (*ForceApi, error) {
-	oauth := &forceOauth{
+	oauth := &ForceOauth{
 		clientId:    clientId,
 		AccessToken: accessToken,
 		InstanceUrl: instanceUrl,
