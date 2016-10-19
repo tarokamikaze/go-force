@@ -131,7 +131,13 @@ func (forceApi *ForceApi) requestWithContentType(method, path string, params url
 			// Check if error is oauth token expired
 			if forceApi.oauth.Expired(apiErrors) {
 				// Reauthenticate then attempt query again
-				oauthErr := forceApi.oauth.Authenticate()
+				var oauthErr error
+
+				if "" != forceApi.oauth.RefreshToken {
+					oauthErr = forceApi.oauth.RefreshAccessToken()
+				} else {
+					oauthErr = forceApi.oauth.Authenticate()
+				}
 				if oauthErr != nil {
 					return oauthErr
 				}

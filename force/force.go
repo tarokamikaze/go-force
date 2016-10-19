@@ -113,11 +113,13 @@ func CreateWithCode(version, clientId, clientSecret, redirectURI, code,
 	return forceApi, oauth, nil
 }
 
-func CreateWithAccessToken(version, clientId, accessToken, instanceUrl string) (*ForceApi, error) {
+func CreateWithAccessToken(version, clientId, clientSecret, accessToken, refreshToken, instanceUrl string) (*ForceApi, error) {
 	oauth := &ForceOauth{
-		clientId:    clientId,
-		AccessToken: accessToken,
-		InstanceUrl: instanceUrl,
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		InstanceUrl:  instanceUrl,
 	}
 
 	forceApi := &ForceApi{
@@ -128,7 +130,7 @@ func CreateWithAccessToken(version, clientId, accessToken, instanceUrl string) (
 		oauth:                  oauth,
 	}
 
-	// We need to check for oath correctness here, since we are not generating the token ourselves.
+	// We need to check for oauth correctness here, since we are not generating the token ourselves.
 	if err := forceApi.oauth.Validate(); err != nil {
 		return nil, err
 	}

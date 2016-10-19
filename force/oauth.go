@@ -54,6 +54,17 @@ func (oauth *ForceOauth) Expired(apiErrors ApiErrors) bool {
 	return false
 }
 
+func (oauth *ForceOauth) RefreshAccessToken() error {
+	payload := url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {oauth.clientId},
+		"client_secret": {oauth.clientSecret},
+		"refresh_token": {oauth.RefreshToken},
+	}
+
+	return oauth.AuthenticatePayload(payload)
+}
+
 func (oauth *ForceOauth) Authenticate() error {
 	payload := url.Values{
 		"grant_type":    {grantType},
@@ -119,6 +130,10 @@ func (oauth *ForceOauth) AuthenticateCode(code string, redirectURI string) error
 		"redirect_uri":  {redirectURI},
 	}
 
+	return oauth.AuthenticatePayload(payload)
+}
+
+func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) error {
 	// Build Uri
 	uri := loginUri
 	if oauth.environment == "sandbox" {
@@ -133,6 +148,8 @@ func (oauth *ForceOauth) AuthenticateCode(code string, redirectURI string) error
 	if err != nil {
 		return fmt.Errorf("Error creating authenitcation request: %v", err)
 	}
+
+	log.Printf("body: %+v", payload.Encode())
 
 	// Add Headers
 	req.Header.Set("User-Agent", userAgent)

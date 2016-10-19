@@ -121,6 +121,11 @@ func (forceApi *ForceApi) DescribeSObject(in SObject) (resp *SObjectDescription,
 	return
 }
 
+// Get a list of all object types
+func (forceApi *ForceApi) GetSObjects() (map[string]*SObjectMetaData, error) {
+	return forceApi.apiSObjects, nil
+}
+
 func (forceApi *ForceApi) GetSObject(id string, fields []string, out SObject) (err error) {
 	uri := strings.Replace(forceApi.apiSObjects[out.ApiName()].URLs[rowTemplateKey], idKey, id, 1)
 
