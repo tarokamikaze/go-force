@@ -55,14 +55,29 @@ func (oauth *ForceOauth) Expired(apiErrors ApiErrors) bool {
 }
 
 func (oauth *ForceOauth) RefreshAccessToken() error {
+	log.Println("Refreshing access token")
 	payload := url.Values{
 		"grant_type":    {"refresh_token"},
 		"client_id":     {oauth.clientId},
 		"client_secret": {oauth.clientSecret},
 		"refresh_token": {oauth.RefreshToken},
 	}
+	respBytes, err := oauth.AuthenticatePayload(payload)
 
-	return oauth.AuthenticatePayload(payload)
+	if nil == err {
+		log.Println("Refreshed access token")
+		var updatedOAuth *ForceOauth
+		if err := json.Unmarshal(respBytes, updatedOAuth); err != nil {
+			return fmt.Errorf("Unable to unmarshal authentication response: %v", err)
+		}
+
+		oauth.AccessToken = updatedOAuth.AccessToken
+		oauth.IssuedAt = updatedOAuth.IssuedAt
+	} else {
+		log.Println("Refreshing access token: " + err.Error())
+	}
+
+	return err
 }
 
 func (oauth *ForceOauth) Authenticate() error {
@@ -130,10 +145,18 @@ func (oauth *ForceOauth) AuthenticateCode(code string, redirectURI string) error
 		"redirect_uri":  {redirectURI},
 	}
 
-	return oauth.AuthenticatePayload(payload)
+	respBytes, err := oauth.AuthenticatePayload(payload)
+
+	if nil == err {
+		if err := json.Unmarshal(respBytes, oauth); err != nil {
+			return fmt.Errorf("Unable to unmarshal authentication response: %v", err)
+		}
+	}
+
+	return nil
 }
 
-func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) error {
+func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) ([]byte, error) {
 	// Build Uri
 	uri := loginUri
 	if oauth.environment == "sandbox" {
@@ -146,10 +169,10 @@ func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) error {
 	// Build Request
 	req, err := http.NewRequest("POST", uri, body)
 	if err != nil {
-		return fmt.Errorf("Error creating authenitcation request: %v", err)
+		return nil, fmt.Errorf("Error creating authenitcation request: %v", err)
 	}
 
-	log.Printf("body: %+v", payload.Encode())
+	log.Printf("body: %v, %+v", uri, payload.Encode())
 
 	// Add Headers
 	req.Header.Set("User-Agent", userAgent)
@@ -158,13 +181,13 @@ func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error sending authentication request: %v", err)
+		return nil, fmt.Errorf("Error sending authentication request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Error reading authentication response bytes: %v", err)
+		return nil, fmt.Errorf("Error reading authentication response bytes: %v", err)
 	}
 
 	log.Printf("respBytes: %+v", string(respBytes))
@@ -174,13 +197,9 @@ func (oauth *ForceOauth) AuthenticatePayload(payload url.Values) error {
 	if err := json.Unmarshal(respBytes, apiError); err == nil {
 		// Check if api error is valid
 		if apiError.Validate() {
-			return apiError
+			return nil, apiError
 		}
 	}
 
-	if err := json.Unmarshal(respBytes, oauth); err != nil {
-		return fmt.Errorf("Unable to unmarshal authentication response: %v", err)
-	}
-
-	return nil
+	return respBytes, nil
 }

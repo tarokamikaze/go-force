@@ -52,14 +52,14 @@ func (forceApi *ForceApi) request(method, path string, params url.Values, payloa
 }
 
 func (forceApi *ForceApi) requestWithContentType(method, path string, params url.Values, payload, out interface{}, contentType string) error {
-	if err := forceApi.oauth.Validate(); err != nil {
+	if err := forceApi.OAuth.Validate(); err != nil {
 		return fmt.Errorf("Error creating %v request: %v", method, err)
 	}
 
 	// Build Uri
 	var uri bytes.Buffer
 	if !strings.HasPrefix(path, "https://") && !strings.HasPrefix(path, "http://") {
-		uri.WriteString(forceApi.oauth.InstanceUrl)
+		uri.WriteString(forceApi.OAuth.InstanceUrl)
 	}
 
 	uri.WriteString(path)
@@ -93,8 +93,8 @@ func (forceApi *ForceApi) requestWithContentType(method, path string, params url
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", responseType)
-	req.Header.Set("Authorization", fmt.Sprintf("%v %v", "Bearer", forceApi.oauth.AccessToken))
-	req.Header.Set("X-SFDC-Session", forceApi.oauth.AccessToken)
+	req.Header.Set("Authorization", fmt.Sprintf("%v %v", "Bearer", forceApi.OAuth.AccessToken))
+	req.Header.Set("X-SFDC-Session", forceApi.OAuth.AccessToken)
 	// Send
 	forceApi.traceRequest(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -129,14 +129,14 @@ func (forceApi *ForceApi) requestWithContentType(method, path string, params url
 	if marshalErr := json.Unmarshal(respBytes, &apiErrors); marshalErr == nil {
 		if apiErrors.Validate() {
 			// Check if error is oauth token expired
-			if forceApi.oauth.Expired(apiErrors) {
+			if forceApi.OAuth.Expired(apiErrors) {
 				// Reauthenticate then attempt query again
 				var oauthErr error
 
-				if "" != forceApi.oauth.RefreshToken {
-					oauthErr = forceApi.oauth.RefreshAccessToken()
+				if "" != forceApi.OAuth.RefreshToken {
+					oauthErr = forceApi.OAuth.RefreshAccessToken()
 				} else {
-					oauthErr = forceApi.oauth.Authenticate()
+					oauthErr = forceApi.OAuth.Authenticate()
 				}
 				if oauthErr != nil {
 					return oauthErr

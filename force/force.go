@@ -34,7 +34,7 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 		apiSObjects:            make(map[string]*SObjectMetaData),
 		apiSObjectDescriptions: make(map[string]*SObjectDescription),
 		apiVersion:             version,
-		oauth:                  oauth,
+		OAuth:                  oauth,
 	}
 
 	if nil != logger {
@@ -42,7 +42,7 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 	}
 
 	// Init oauth
-	err := forceApi.oauth.Authenticate()
+	err := forceApi.OAuth.Authenticate()
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func CreateWithCode(version, clientId, clientSecret, redirectURI, code,
 		apiSObjects:            make(map[string]*SObjectMetaData),
 		apiSObjectDescriptions: make(map[string]*SObjectDescription),
 		apiVersion:             version,
-		oauth:                  oauth,
+		OAuth:                  oauth,
 	}
 
 	if nil != logger {
@@ -88,7 +88,7 @@ func CreateWithCode(version, clientId, clientSecret, redirectURI, code,
 	}
 
 	// Init oauth
-	err := forceApi.oauth.AuthenticateCode(code, redirectURI)
+	err := forceApi.OAuth.AuthenticateCode(code, redirectURI)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -127,11 +127,11 @@ func CreateWithAccessToken(version, clientId, clientSecret, accessToken, refresh
 		apiSObjects:            make(map[string]*SObjectMetaData),
 		apiSObjectDescriptions: make(map[string]*SObjectDescription),
 		apiVersion:             version,
-		oauth:                  oauth,
+		OAuth:                  oauth,
 	}
 
 	// We need to check for oauth correctness here, since we are not generating the token ourselves.
-	if err := forceApi.oauth.Validate(); err != nil {
+	if err := forceApi.OAuth.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -150,7 +150,7 @@ func CreateWithAccessToken(version, clientId, clientSecret, accessToken, refresh
 
 func (forceApi *ForceApi) PopulateSessionToken() error {
 	var i interface{}
-	return forceApi.Get(forceApi.oauth.Id, nil, i)
+	return forceApi.Get(forceApi.OAuth.Id, nil, i)
 }
 
 // Used when running tests.

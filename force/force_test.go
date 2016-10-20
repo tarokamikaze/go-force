@@ -25,20 +25,20 @@ func TestCreateWithAccessToken(t *testing.T) {
 		oauth:                  oauth,
 	}
 
-	err := forceApi.oauth.Authenticate()
+	err := forceApi.OAuth.Authenticate()
 	if err != nil {
 		t.Fatalf("Unable to authenticate: %#v", err)
 	}
-	if err := forceApi.oauth.Validate(); err != nil {
+	if err := forceApi.OAuth.Validate(); err != nil {
 		t.Fatalf("Oauth object is invlaid: %#v", err)
 	}
 
 	// We shouldn't hit any errors creating a new force instance and manually passing in these oauth details now.
-	newForceApi, err := CreateWithAccessToken(testVersion, testClientId, forceApi.oauth.AccessToken, forceApi.oauth.InstanceUrl)
+	newForceApi, err := CreateWithAccessToken(testVersion, testClientId, forceApi.OAuth.AccessToken, forceApi.OAuth.InstanceUrl)
 	if err != nil {
 		t.Fatalf("Unable to create new force api instance using pre-defined oauth details: %#v", err)
 	}
-	if err := newForceApi.oauth.Validate(); err != nil {
+	if err := newforceApi.OAuth.Validate(); err != nil {
 		t.Fatalf("Oauth object is invlaid: %#v", err)
 	}
 
