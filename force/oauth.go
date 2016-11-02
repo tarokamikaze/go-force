@@ -66,9 +66,9 @@ func (oauth *ForceOauth) RefreshAccessToken() error {
 
 	if nil == err {
 		log.Println("Refreshed access token")
-		var updatedOAuth *ForceOauth
-		if err := json.Unmarshal(respBytes, updatedOAuth); err != nil {
-			return fmt.Errorf("Unable to unmarshal authentication response: %v", err)
+		var updatedOAuth ForceOauth
+		if err := json.Unmarshal(respBytes, &updatedOAuth); err != nil {
+			return fmt.Errorf("Unable to unmarshal authentication response: %v (%s)", err, string(respBytes))
 		}
 
 		oauth.AccessToken = updatedOAuth.AccessToken
