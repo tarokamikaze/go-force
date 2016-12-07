@@ -278,7 +278,7 @@ func (forceApi *ForceApi) getBatchStatus(jobID string, batchID string) (*CreateB
 func (forceApi *ForceApi) getBatchResults(jobID string, batchID string) ([]*SObjectResponse, error) {
 
 	jobResp := []*SObjectResponse{}
-	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID+"/result", nil, jobResp)
+	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID+"/result", nil, &jobResp)
 
 	if nil != err {
 		return nil, err

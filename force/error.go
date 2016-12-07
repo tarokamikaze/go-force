@@ -31,7 +31,11 @@ func (e ApiErrors) String() string {
 
 func (e ApiErrors) Validate() bool {
 	if len(e) != 0 {
-		return true
+		for _, err := range e {
+			if len(err.ErrorCode) > 0 {
+				return true
+			}
+		}
 	}
 
 	return false
