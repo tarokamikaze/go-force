@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"net/url"
 	"strings"
 	"time"
@@ -76,6 +77,14 @@ type CreateBatchResponse struct {
 	State                   string `json:"state"`
 	SystemModstamp          string `json:"systemModstamp"`
 	TotalProcessingTime     int    `json:"totalProcessingTime"`
+}
+
+func (forceAPI *ForceApi) DescribeSObjects() (map[string]*SObjectMetaData, error) {
+	if err := forceAPI.getApiSObjects(); err != nil {
+		return nil, err
+	}
+
+	return forceAPI.apiSObjects, nil
 }
 
 func (forceApi *ForceApi) DescribeSObject(in SObject) (resp *SObjectDescription, err error) {

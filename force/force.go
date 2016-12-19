@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	testVersion       = "v29.0"
+	testVersion       = "v36.0"
 	testClientId      = "3MVG9A2kN3Bn17hs8MIaQx1voVGy662rXlC37svtmLmt6wO_iik8Hnk3DlcYjKRvzVNGWLFlGRH1ryHwS217h"
 	testClientSecret  = "4165772184959202901"
 	testUserName      = "go-force@jalali.net"
@@ -198,4 +198,43 @@ func (forceApi *ForceApi) trace(name string, value interface{}, format string) {
 		logMsg := "%s%s " + format + "\n"
 		forceApi.logger.Printf(logMsg, forceApi.logPrefix, name, value)
 	}
+}
+func CreateWithRefreshToken(version, clientId, clientSecret, accessToken, refreshToken, instanceUrl string)  (*ForceApi, error) {
+	oauth := &ForceOauth{
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		InstanceUrl:  instanceUrl,
+	}
+
+	forceApi := &ForceApi{
+		apiResources:           make(map[string]string),
+		apiSObjects:            make(map[string]*SObjectMetaData),
+		apiSObjectDescriptions: make(map[string]*SObjectDescription),
+		apiVersion:             version,
+		OAuth:                  oauth,
+	}
+
+	// obtain access token
+	if err := forceApi.RefreshToken(); err != nil {
+		return nil, err
+	}
+
+	// We need to check for oath correctness here, since we are not generating the token ourselves.
+	if err := forceApi.OAuth.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Init Api Resources
+	err := forceApi.getApiResources()
+	if err != nil {
+		return nil, err
+	}
+	err = forceApi.getApiSObjects()
+	if err != nil {
+		return nil, err
+	}
+
+	return forceApi, nil
 }
