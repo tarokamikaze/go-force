@@ -79,6 +79,10 @@ func ConvertFieldNames(obj interface{}, jsonFields string) string {
 	return ""
 }
 
+func (a Account) SetID(id string) {
+	a.Id = id
+}
+
 // Helper function used in ConvertFieldNames
 func fieldNameMapping(obj interface{}) map[string]string {
 	st := reflect.TypeOf(obj)

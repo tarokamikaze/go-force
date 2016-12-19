@@ -13,7 +13,3 @@ func (a Account) ApiName() string {
 	return "Account"
 }
 
-func (a Account) SetID(id string) {
-	a.Id = id
-}
-
