@@ -67,6 +67,16 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 	return forceApi, nil
 }
 
+func MustCreate(version, clientId, clientSecret, userName, password, securityToken,
+	environment, prefix string, logger ForceApiLogger) (*ForceApi, error) {
+	f,err := Create(version,clientId,clientSecret, userName, password, securityToken,
+		environment, prefix , logger )
+	if err != nil{
+		panic(err)
+	}
+	return f
+}
+
 func CreateWithCode(version, clientId, clientSecret, redirectURI, code,
 	environment, prefix string, logger ForceApiLogger) (*ForceApi, *ForceOauth, error) {
 	oauth := &ForceOauth{
