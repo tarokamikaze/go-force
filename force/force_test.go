@@ -8,7 +8,7 @@ import (
 func TestCreateWithAccessToken(t *testing.T) {
 
 	// Manually grab an OAuth token, so that we can pass it into CreateWithAccessToken
-	oauth := &forceOauth{
+	oauth := &ForceOauth{
 		clientId:      testClientId,
 		clientSecret:  testClientSecret,
 		userName:      testUserName,
@@ -22,7 +22,7 @@ func TestCreateWithAccessToken(t *testing.T) {
 		apiSObjects:            make(map[string]*SObjectMetaData),
 		apiSObjectDescriptions: make(map[string]*SObjectDescription),
 		apiVersion:             version,
-		oauth:                  oauth,
+		OAuth:                  oauth,
 	}
 
 	err := forceApi.OAuth.Authenticate()
@@ -34,16 +34,16 @@ func TestCreateWithAccessToken(t *testing.T) {
 	}
 
 	// We shouldn't hit any errors creating a new force instance and manually passing in these oauth details now.
-	newForceApi, err := CreateWithAccessToken(testVersion, testClientId, forceApi.OAuth.AccessToken, forceApi.OAuth.InstanceUrl)
+	newForceApi, err := CreateWithAccessToken(testVersion, testClientId, forceApi.OAuth.clientSecret, forceApi.OAuth.AccessToken, forceApi.OAuth.RefreshToken, forceApi.OAuth.InstanceUrl)
 	if err != nil {
 		t.Fatalf("Unable to create new force api instance using pre-defined oauth details: %#v", err)
 	}
-	if err := newforceApi.OAuth.Validate(); err != nil {
+	if err := newForceApi.OAuth.Validate(); err != nil {
 		t.Fatalf("Oauth object is invlaid: %#v", err)
 	}
 
 	// We should be able to make a basic query now with the newly created object (i.e. the oauth details should be correctly usable).
-	_, err = newForceApi.DescribeSObject(&sobjects.Account{})
+	_, err = newForceApi.DescribeSObject(sobjects.Account{})
 	if err != nil {
 		t.Fatalf("Failed to retrieve description of sobject: %v", err)
 	}

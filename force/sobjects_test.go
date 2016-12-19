@@ -23,6 +23,10 @@ func (t *CustomSObject) ApiName() string {
 	return "CustomObject__c"
 }
 
+func (t *CustomSObject) SetID(id string){{
+	t.Id = id
+}}
+
 func TestDescribeSobjects(t *testing.T) {
 	forceAPI := createTest()
 	objects, err := forceAPI.DescribeSObjects()
@@ -101,7 +105,7 @@ func TestUpdateSObject(t *testing.T) {
 	}
 
 	if acc.Name != someText {
-		t.Fatalf("Update SObject Account failed. Failed to persist.")
+		t.Fatal("Update SObject Account failed. Failed to persist.")
 	}
 
 	t.Logf("Updated SObject Account: %+v", acc)

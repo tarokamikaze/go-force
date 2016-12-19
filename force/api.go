@@ -245,20 +245,20 @@ func (forceApi *ForceApi) getApiSObjectDescriptions() error {
 }
 
 func (forceApi *ForceApi) GetInstanceURL() string {
-	return forceApi.oauth.InstanceUrl
+	return forceApi.OAuth.InstanceUrl
 }
 
 func (forceApi *ForceApi) GetAccessToken() string {
-	return forceApi.oauth.AccessToken
+	return forceApi.OAuth.AccessToken
 }
 
 func (forceApi *ForceApi) RefreshToken() error {
 	res := &RefreshTokenResponse{}
 	payload := map[string]string{
 		"grant_type":    "refresh_token",
-		"refresh_token": forceApi.oauth.refreshToken,
-		"client_id":     forceApi.oauth.clientId,
-		"client_secret": forceApi.oauth.clientSecret,
+		"refresh_token": forceApi.OAuth.refreshToken,
+		"client_id":     forceApi.OAuth.clientId,
+		"client_secret": forceApi.OAuth.clientSecret,
 	}
 
 	err := forceApi.Post("/services/oauth2/token", nil, payload, res)
@@ -266,6 +266,6 @@ func (forceApi *ForceApi) RefreshToken() error {
 		return err
 	}
 
-	forceApi.oauth.AccessToken = res.AccessToken
+	forceApi.OAuth.AccessToken = res.AccessToken
 	return nil
 }
