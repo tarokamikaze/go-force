@@ -68,7 +68,7 @@ func Create(version, clientId, clientSecret, userName, password, securityToken,
 }
 
 func MustCreate(version, clientId, clientSecret, userName, password, securityToken,
-	environment, prefix string, logger ForceApiLogger) (*ForceApi, error) {
+	environment, prefix string, logger ForceApiLogger) (*ForceApi) {
 	f,err := Create(version,clientId,clientSecret, userName, password, securityToken,
 		environment, prefix , logger )
 	if err != nil{
