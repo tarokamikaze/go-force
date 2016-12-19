@@ -78,6 +78,29 @@ type CreateBatchResponse struct {
 	TotalProcessingTime     int    `json:"totalProcessingTime"`
 }
 
+type bulkMode int
+
+const (
+	BULK_INSERT bulkMode = iota+1
+	BULK_UPDATE
+	BULK_UPSERT
+	BULK_DELETE
+)
+
+func (b bulkMode) String() string {
+	switch b {
+	case BULK_INSERT:
+		return "insert"
+	case BULK_UPDATE:
+		return "update"
+	case BULK_UPSERT:
+		return "upsert"
+	case BULK_DELETE:
+		return "delete"
+	}
+	return ""
+}
+
 func (forceAPI *ForceApi) DescribeSObjects() (map[string]*SObjectMetaData, error) {
 	if err := forceAPI.getApiSObjects(); err != nil {
 		return nil, err
@@ -198,59 +221,74 @@ func (forceApi *ForceApi) BulkQuerySObjects(table string, query string) ([]*SObj
 }
 
 func (forceApi *ForceApi) BulkInsertSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
-	if _, ok := forceApi.apiSObjects[table]; ok {
+	return forceApi.bulkModifySObjects(BULK_INSERT, table, in)
+}
 
-		job, err := forceApi.createJob(table, "insert", "JSON")
+func (forceApi *ForceApi) BulkUpdateSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+	return forceApi.bulkModifySObjects(BULK_UPDATE, table, in)
+}
 
-		if nil != err {
-			return nil, err
-		}
+//func (forceApi *ForceApi) BulkUpsertSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+//	return forceApi.bulkModifySObjects(BULK_UPSERT, table, in)
+//}
+//
+//func (forceApi *ForceApi) BulkDeleteSObjects(table string, in []SObject) ([]*SObjectResponse, error) {
+//	return forceApi.bulkModifySObjects(BULK_DELETE, table, in)
+//}
 
-		defer forceApi.closeJob(job.ID)
-
-		res, err := forceApi.createInsertBatch(job.ID, in)
-
-		if nil != err {
-			return nil, err
-		}
-
-		batchID := res.ID
-
-		for res.State != "Completed" {
-			time.Sleep(time.Second * time.Duration(2))
-			res, err = forceApi.getBatchStatus(job.ID, batchID)
-
-			if nil != err {
-				return nil, err
-			}
-
-			if res.State == "Failed" {
-				return nil, errors.New("Failed import")
-			}
-		}
-
-		if res.State == "Completed" {
-			results, err := forceApi.getBatchResults(job.ID, batchID)
-			if nil != err {
-				return nil, err
-			}
-
-			return results, nil
-		}
-
-		return nil, errors.New("Unknown error")
-
-	} else {
+func (forceApi *ForceApi) bulkModifySObjects(b bulkMode, table string, in []SObject) ([]*SObjectResponse, error) {
+	if _, ok := forceApi.apiSObjects[table]; !ok {
 		err := errors.New("Not found")
 
 		return nil, err
 	}
+
+	job, err := forceApi.createJob(table, b.String(), "JSON")
+
+	if nil != err {
+		return nil, err
+	}
+
+	defer forceApi.closeJob(job.ID)
+
+	res, err := forceApi.createModifyBatch(job.ID, in)
+
+	if nil != err {
+		return nil, err
+	}
+
+	batchID := res.ID
+
+	for res.State != "Completed" {
+		time.Sleep(time.Second * time.Duration(2))
+		res, err = forceApi.getBatchStatus(job.ID, batchID)
+
+		if nil != err {
+			return nil, err
+		}
+
+		if res.State == "Failed" {
+			return nil, errors.New("Failed import")
+		}
+	}
+
+	if res.State == "Completed" {
+		results, err := forceApi.getBatchResults(job.ID, batchID)
+		if nil != err {
+			return nil, err
+		}
+
+		return results, nil
+	}
+
+	return nil, errors.New("Unknown error")
+
 }
 
 func (forceApi *ForceApi) createQueryBatch(jobID string, query string) (*CreateBatchResponse, error) {
 
 	jobResp := &CreateBatchResponse{}
-	err := forceApi.requestWithContentType("POST", "/services/async/37.0/job/"+jobID+"/batch", nil, query, jobResp, "text/csv")
+	err := forceApi.requestWithContentType("POST", "/services/async/37.0/job/" + jobID + "/batch", nil, query, jobResp, "text/csv")
 
 	if nil != err {
 		return nil, err
@@ -259,10 +297,10 @@ func (forceApi *ForceApi) createQueryBatch(jobID string, query string) (*CreateB
 	return jobResp, nil
 }
 
-func (forceApi *ForceApi) createInsertBatch(jobID string, in []SObject) (*CreateBatchResponse, error) {
+func (forceApi *ForceApi) createModifyBatch(jobID string, in []SObject) (*CreateBatchResponse, error) {
 
 	jobResp := &CreateBatchResponse{}
-	err := forceApi.Post("/services/async/37.0/job/"+jobID+"/batch", nil, in, jobResp)
+	err := forceApi.Post("/services/async/37.0/job/" + jobID + "/batch", nil, in, jobResp)
 
 	if nil != err {
 		return nil, err
@@ -274,7 +312,7 @@ func (forceApi *ForceApi) createInsertBatch(jobID string, in []SObject) (*Create
 func (forceApi *ForceApi) getBatchStatus(jobID string, batchID string) (*CreateBatchResponse, error) {
 
 	jobResp := &CreateBatchResponse{}
-	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID, nil, jobResp)
+	err := forceApi.Get("/services/async/37.0/job/" + jobID + "/batch/" + batchID, nil, jobResp)
 
 	if nil != err {
 		return nil, err
@@ -286,7 +324,7 @@ func (forceApi *ForceApi) getBatchStatus(jobID string, batchID string) (*CreateB
 func (forceApi *ForceApi) getBatchResults(jobID string, batchID string) ([]*SObjectResponse, error) {
 
 	jobResp := []*SObjectResponse{}
-	err := forceApi.Get("/services/async/37.0/job/"+jobID+"/batch/"+batchID+"/result", nil, &jobResp)
+	err := forceApi.Get("/services/async/37.0/job/" + jobID + "/batch/" + batchID + "/result", nil, &jobResp)
 
 	if nil != err {
 		return nil, err
@@ -317,7 +355,7 @@ func (forceApi *ForceApi) closeJob(jobID string) (*CreateJobResponse, error) {
 	}
 
 	jobResp := &CreateJobResponse{}
-	err := forceApi.Post("/services/async/37.0/job/"+jobID, nil, req, jobResp)
+	err := forceApi.Post("/services/async/37.0/job/" + jobID, nil, req, jobResp)
 
 	if nil != err {
 		return nil, err
@@ -329,7 +367,7 @@ func (forceApi *ForceApi) closeJob(jobID string) (*CreateJobResponse, error) {
 func (forceApi *ForceApi) getJobStatus(jobID string) (*CreateJobResponse, error) {
 
 	jobResp := &CreateJobResponse{}
-	err := forceApi.Get("/services/async/37.0/job/"+jobID, nil, jobResp)
+	err := forceApi.Get("/services/async/37.0/job/" + jobID, nil, jobResp)
 
 	if nil != err {
 		return nil, err
