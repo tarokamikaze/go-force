@@ -5,7 +5,7 @@ go-force
 
 [Golang](http://golang.org/) API wrapper for [Force.com](http://www.force.com/), [Salesforce.com](http://www.salesforce.com/)
 
-Installation
+Installation!
 ============
 	go get github.com/nimajalali/go-force/force
 
