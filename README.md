@@ -9,7 +9,7 @@ Installation
 ============
 	go get github.com/nimajalali/go-force/force
 
-Example!
+Example
 ============
 ```go
 package main
