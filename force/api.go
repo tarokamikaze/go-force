@@ -3,6 +3,7 @@ package force
 import (
 	"errors"
 	"fmt"
+	"net/url"
 )
 
 const (
@@ -19,6 +20,32 @@ const (
 	resourcesUri = "/services/data/%v/"
 	versionsUri  = "/services/data"
 )
+
+type ForceApiInterface interface {
+	Delete(path string, params url.Values) error
+	DeleteSObject(id string, in SObject) (err error)
+	DeleteSObjectByExternalId(id string, in SObject) (err error)
+	DescribeSObject(in SObject) (resp *SObjectDescription, err error)
+	DescribeSObjects() (map[string]*SObjectMetaData, error)
+	Get(path string, params url.Values, out interface{}) error
+	GetAccessToken() string
+	GetInstanceURL() string
+	GetLimits() (limits *Limits, err error)
+	GetSObject(id string, fields []string, out SObject) (err error)
+	GetSObjectByExternalId(id string, fields []string, out SObject) (err error)
+	InsertSObject(in SObject) (resp *SObjectResponse, err error)
+	Patch(path string, params url.Values, payload, out interface{}) error
+	Post(path string, params url.Values, payload, out interface{}) error
+	Put(path string, params url.Values, payload, out interface{}) error
+	Query(query string, out interface{}) (err error)
+	QueryAll(query string, out interface{}) (err error)
+	QueryNext(uri string, out interface{}) (err error)
+	RefreshToken() error
+	TraceOff()
+	TraceOn(prefix string, logger ForceApiLogger)
+	UpdateSObject(id string, in SObject) (err error)
+	UpsertSObjectByExternalId(id string, in SObject) (resp *SObjectResponse, err error)
+}
 
 type ForceApi struct {
 	OAuth                  *ForceOauth

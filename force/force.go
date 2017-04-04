@@ -19,7 +19,7 @@ const (
 )
 
 func Create(version, clientId, clientSecret, userName, password, securityToken,
-	environment, prefix string, logger ForceApiLogger) (*ForceApi, error) {
+	environment, prefix string, logger ForceApiLogger) (ForceApiInterface, error) {
 	oauth := &ForceOauth{
 		clientId:      clientId,
 		clientSecret:  clientSecret,
@@ -161,7 +161,7 @@ func createTest() *ForceApi {
 		os.Exit(1)
 	}
 
-	return forceApi
+	return forceApi.(*ForceApi)
 }
 
 type ForceApiLogger interface {
