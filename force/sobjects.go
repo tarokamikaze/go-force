@@ -76,6 +76,7 @@ type CreateBatchResponse struct {
 	State                   string `json:"state"`
 	SystemModstamp          string `json:"systemModstamp"`
 	TotalProcessingTime     int    `json:"totalProcessingTime"`
+	StateMessage			string `json:"stateMessage"`
 }
 
 type bulkMode int
@@ -268,7 +269,7 @@ func (forceApi *ForceApi) bulkModifySObjects(b bulkMode, table string, in []SObj
 		}
 
 		if res.State == "Failed" {
-			return nil, errors.New("Failed import")
+			return nil, errors.New(res.StateMessage)
 		}
 	}
 
