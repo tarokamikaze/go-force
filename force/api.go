@@ -22,6 +22,7 @@ const (
 )
 
 type ForceApiInterface interface {
+	BulkInsertSObjects(table string, in []SObject) ([]*SObjectResponse, error)
 	BulkUpdateSObjects(table string, in []SObject) ([]*SObjectResponse, error)
 	Delete(path string, params url.Values) error
 	DeleteSObject(id string, in SObject) (err error)
